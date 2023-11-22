@@ -1,6 +1,8 @@
 ---
 - name: Converge
   hosts: all
+  become: true
+
   tasks:
     - name: "Include gitea"
       ansible.builtin.include_role:

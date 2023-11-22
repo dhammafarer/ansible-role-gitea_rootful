@@ -1,0 +1,41 @@
+---
+- name: Pull gitea-db image
+  containers.podman.podman_image:
+    name: "{{ gitea_db_image_name }}"
+    tag: "{{ gitea_db_image_tag }}"
+
+- name: Create pod for db.
+  containers.podman.podman_pod:
+    name: gitea-db
+    state: created
+    recreate: true
+    network:
+      - "{{ gitea_net_name }}"
+
+- name: Run gitea-db container
+  containers.podman.podman_container:
+    pod: gitea-db
+    name: postgres_gitea
+    image: "{{ gitea_db_image_name }}:{{ gitea_db_image_tag }}"
+    state: created
+    restart_policy: always
+    volumes:
+      - "/srv/gitea/postgres:/var/lib/postgresql/data:Z"
+    env:
+      POSTGRES_USER: "{{ gitea_db_user }}"
+      POSTGRES_PASSWORD: "{{ gitea_db_pass }}"
+      POSTGRES_DB: "{{ gitea_db_name }}"
+      TZ: "Asia/Taipei"
+
+- name: Create systemd service for db.
+  containers.podman.podman_generate_systemd:
+    name: gitea-db
+    dest: /etc/systemd/system
+    restart_policy: on-failure
+
+- name: Ensure systemd service is enabled and started for db.
+  ansible.builtin.systemd:
+    name: pod-gitea-db
+    daemon_reload: true
+    state: started
+    enabled: true

@@ -15,4 +15,4 @@ gitea_db_port: "5432"
 
 ## App Management
 gitea_app_image_name: "docker.io/gitea/gitea"
-gitea_app_image_tag: "latest"
+gitea_app_image_tag: "1.21"

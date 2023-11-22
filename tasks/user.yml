@@ -1,0 +1,33 @@
+---
+- name: Create a user named git.
+  ansible.builtin.user:
+    name: git
+    state: present
+    password: '!'
+    comment: "Git Version Control"
+    home: /home/git
+    shell: /bin/bash
+    generate_ssh_key: true
+    ssh_key_bits: 4096
+    ssh_key_type: rsa
+    ssh_key_comment: "Gitea Host Key"
+    system: true
+  register: user_data
+
+- name: Set facts for UID and GID of git user.
+  ansible.builtin.set_fact:
+    gitea_uid: "{{ user_data.uid }}"
+    gitea_gid: "{{ user_data.group }}"
+    gitea_ssh_public_key: "{{ user_data.ssh_public_key }}"
+
+- name: Set authorized key for user git.
+  ansible.posix.authorized_key:
+    user: git
+    state: present
+    key: "{{ gitea_ssh_public_key }}"
+
+- name: Install SSH Shim script template
+  ansible.builtin.template:
+    src: templates/usr/local/bin/gitea.j2
+    dest: /usr/local/bin/gitea
+    mode: "0755"

@@ -1,0 +1,54 @@
+---
+- name: Pull gitea-app Image
+  containers.podman.podman_image:
+    name: "{{ gitea_app_image_name }}"
+    tag: "{{ gitea_app_image_tag }}"
+    state: present
+
+- name: Create pod for app.
+  containers.podman.podman_pod:
+    name: gitea
+    state: created
+    recreate: true
+    publish:
+      - "{{ gitea_publish_http }}:3000"
+      - "{{ gitea_publish_ssh }}:22"
+    network:
+      - "{{ gitea_net_name }}"
+
+- name: Run gitea-app container
+  containers.podman.podman_container:
+    pod: gitea
+    name: gitea-app
+    image: "{{ gitea_app_image_name }}:{{ gitea_app_image_tag }}"
+    state: created
+    restart_policy: always
+    volumes:
+      - /srv/gitea/data:/data:Z
+      - /home/git/.ssh/:/data/git/.ssh:Z
+      - /etc/localtime:/etc/localtime:ro
+    env:
+      USER: git
+      USER_UID: "{{ gitea_uid }}"
+      USER_GID: "{{ gitea_gid }}"
+      GITEA__database__DB_TYPE: postgres
+      GITEA__database__HOST: "gitea-db:5432"
+      GITEA__database__NAME: "{{ gitea_db_name }}"
+      GITEA__database__USER: "{{ gitea_db_user }}"
+      GITEA__database__PASSWD: "{{ gitea_db_pass }}"
+
+- name: Create systemd service for app.
+  containers.podman.podman_generate_systemd:
+    name: gitea
+    dest: /etc/systemd/system
+    restart_policy: on-failure
+    force: true
+    requires:
+      - pod-gitea-db.service
+
+- name: Ensure systemd service is enabled and started for app.
+  ansible.builtin.systemd:
+    name: pod-gitea
+    daemon_reload: true
+    state: started
+    enabled: true

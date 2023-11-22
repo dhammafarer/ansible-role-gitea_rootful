@@ -1,0 +1,13 @@
+---
+- name: Prepare
+  become: true
+  hosts: all
+
+  roles:
+    - role: palekiwi.epel
+
+  tasks:
+    - name: Ensure podman is installed.
+      ansible.builtin.dnf:
+        name: podman
+        state: present

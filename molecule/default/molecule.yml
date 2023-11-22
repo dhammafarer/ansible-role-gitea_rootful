@@ -1,0 +1,17 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: vagrant
+  provider:
+    name: libvirt
+    qemu_use_session: false
+platforms:
+  - name: rocky9
+    box: rockylinux/9
+    cpus: 2
+    memory: 4096
+provisioner:
+  name: ansible
+verifier:
+  name: ansible

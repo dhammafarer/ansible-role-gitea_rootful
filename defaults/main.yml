@@ -1,0 +1,18 @@
+---
+gitea_publish_http: "3000"
+gitea_publish_ssh: "2222"
+
+gitea_net_name: "gitea"
+
+## Database Management
+gitea_db_image_name: "docker.io/library/postgres"
+gitea_db_image_tag: "16-alpine"
+
+gitea_db_name: "gitea"
+gitea_db_user: "gitea"
+gitea_db_pass: "password"
+gitea_db_port: "5432"
+
+## App Management
+gitea_app_image_name: "docker.io/gitea/gitea"
+gitea_app_image_tag: "latest"

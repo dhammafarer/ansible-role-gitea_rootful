@@ -1,0 +1,2 @@
+#!/bin/sh
+/usr/bin/podman exec -i --env SSH_ORIGINAL_COMMAND="$SSH_ORIGINAL_COMMAND" gitea-app sh "$@"

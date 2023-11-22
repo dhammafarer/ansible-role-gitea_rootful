@@ -1,0 +1,113 @@
+---
+- name: Create a user named git.
+  become: true
+  ansible.builtin.user:
+    name: git
+    state: present
+    password: '!'
+    comment: "Git Version Control"
+    home: /home/git
+    shell: /bin/bash
+    generate_ssh_key: true
+    ssh_key_bits: 4096
+    ssh_key_type: rsa
+    ssh_key_comment: "Gitea Host Key"
+    system: true
+  register: user_data
+
+- name: Set facts for UID and GID of git user.
+  ansible.builtin.set_fact:
+    gitea_uid: "{{ user_data.uid }}"
+    gitea_gid: "{{ user_data.group }}"
+    gitea_ssh_public_key: "{{ user_data.ssh_public_key }}"
+
+- name: Set authorized key for user git.
+  become: true
+  ansible.posix.authorized_key:
+    user: git
+    state: present
+    key: "{{ gitea_ssh_public_key }}"
+
+
+- name: Install SSH Shim script template
+  become: true
+  ansible.builtin.template:
+    src: templates/usr/local/bin/gitea.j2
+    dest: /usr/local/bin/gitea
+    mode: "0755"
+
+## Volumes
+
+- name: Ensure volume directories exist for gitea.
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "0755"
+    state: directory
+    owner: "{{ gitea_uid }}"
+    group: "{{ gitea_gid }}"
+  loop:
+    - /srv/gitea/postgres
+    - /srv/gitea/data
+    - /srv/gitea/config
+
+- name: Run tasks for user root.
+  become: true
+  block:
+    - name: Create Podman Network for gitea.
+      containers.podman.podman_network:
+        name: "{{ gitea_net_name }}"
+        state: present
+
+    - name: Pull gitea-db image
+      containers.podman.podman_image:
+        name: "{{ gitea_db_image_name }}"
+        tag: "{{ gitea_db_image_tag }}"
+
+    - name: Run gitea-db container
+      containers.podman.podman_container:
+        name: gitea-db
+        image: "{{ gitea_db_image_name }}:{{ gitea_db_image_tag }}"
+        state: started
+        recreate: true
+        restart_policy: always
+        network:
+          - "{{ gitea_net_name }}"
+        volumes:
+          - "/srv/gitea/postgres:/var/lib/postgresql/data:Z"
+        env:
+          POSTGRES_USER: "{{ gitea_db_user }}"
+          POSTGRES_PASSWORD: "{{ gitea_db_pass }}"
+          POSTGRES_DB: "{{ gitea_db_name }}"
+          TZ: "Asia/Taipei"
+
+    - name: Pull gitea-app Image
+      containers.podman.podman_image:
+        name: "{{ gitea_app_image_name }}"
+        tag: "{{ gitea_app_image_tag }}"
+        state: present
+
+    - name: Run gitea-app container
+      containers.podman.podman_container:
+        name: gitea-app
+        image: "{{ gitea_app_image_name }}:{{ gitea_app_image_tag }}"
+        state: started
+        recreate: true
+        restart_policy: always
+        network:
+          - "{{ gitea_net_name }}"
+        volumes:
+          - /srv/gitea/data:/data:Z
+          - /home/git/.ssh/:/data/git/.ssh:Z
+          - /etc/localtime:/etc/localtime:ro
+        publish:
+          - "{{ gitea_publish_http }}:3000"
+          - "{{ gitea_publish_ssh }}:22"
+        env:
+          USER_UID: "{{ gitea_uid }}"
+          USER_GID: "{{ gitea_gid }}"
+          GITEA__database__DB_TYPE: postgres
+          GITEA__database__HOST: "gitea-db:5432"
+          GITEA__database__NAME: "{{ gitea_db_name }}"
+          GITEA__database__USER: "{{ gitea_db_user }}"
+          GITEA__database__PASSWD: "{{ gitea_db_pass }}"

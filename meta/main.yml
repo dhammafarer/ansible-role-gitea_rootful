@@ -7,7 +7,7 @@ collections:
   - containers.podman
 
 galaxy_info:
-  role_name: gitea
+  role_name: gitea_rootful
   author: palekiwi
   description: Install gitea
   license: "license (BSD, MIT)"

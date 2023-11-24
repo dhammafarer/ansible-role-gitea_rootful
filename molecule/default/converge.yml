@@ -4,6 +4,6 @@
   become: true
 
   tasks:
-    - name: "Include gitea"
+    - name: "Include gitea_rootfl"
       ansible.builtin.include_role:
-        name: "gitea"
+        name: "gitea_rootful"
